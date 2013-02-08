@@ -1,24 +1,63 @@
 if (typeof define !== 'function') { var define = require('amdefine')(module); }
 
 define(function() {
-    var results = [];
   return {
-    listFiles: function(data, dirName) {
-        for (var prop in data) {            
-            if ((prop !== 'dir') && (typeof data[prop] === 'string')) {
-                results.push(data[prop]);
-            } else {
-                if (data.files !== undefined) {
-                    this.listFiles(data.files, data.dir);
-                } else {
-                    if (data[prop].files !== undefined) {
-                        this.listFiles(data[prop].files, data[prop].dir);
+    listFiles: function(data, scanDir) {
+        var files = [], dirs = [];
+
+        function browseToSelectedDir(data) {
+            for (var prop in data) {
+                var data_files = data.files || data[prop].files,
+                    data_dir = data.dir || data[prop].dir;
+                if (data_files) {
+                    if ((data_dir === scanDir) && (dirs.indexOf(data_dir) === -1)) {
+                        dirs.push(scanDir);
+                        return listDirsAndFiles(data_files, data_dir);
+                    } else {
+                        browseToSelectedDir(data.files);
                     }
                 }
             }
+
+            return files;
         }
 
-        return results;
+        function listDirsAndFiles (data, dirName) { 
+            function wasDirScaned (dirName) {
+                return (dirs.indexOf(dirName) > -1);
+            }
+
+            for (var prop in data) {            
+                if ((prop !== 'dir') && (typeof data[prop] === 'string')) {
+                    if (wasDirScaned(dirName)) {
+                        files.push(data[prop]);
+                    }
+                } else {
+                    var data_files = data.files || data[prop].files,
+                        data_dir = data.dir || data[prop].dir;
+                    if (data_files) {
+                        if (scanDir) {
+                            if (dirs.indexOf(scanDir) === 0) {
+                                dirs.push(data_dir);
+                                listDirsAndFiles(data_files, data_dir);                                
+                            }
+                        } else {
+                            if (!wasDirScaned(data_dir)) {
+                                dirs.push(data_dir);
+                                listDirsAndFiles(data_files, data_dir);
+                            }
+                        }
+                    }
+                }
+            }
+            return files;
+        }
+
+        if (scanDir) {
+            return browseToSelectedDir(data); 
+        } else {
+            return listDirsAndFiles(data);
+        }
     },
 
     permute: function(arr) {
